@@ -1,0 +1,19 @@
+Add timeouts / timestamps to all structs, and check them
+
+Redis keys need expiry times (60s past timeout?)
+
+How does SSL get added and removed?
+
+What does the routing logic look like?
+
+What do intermediary master calls look like?
+
+Use redis connection pool
+
+Return err/stdout/stderr from commands
+
+What do we serialize the redis data with? json?
+
+Move to http+json-rpc (gorilla?) instead of raw net/rpc?
+
+Do we kill or ignore on command execution timeout?
