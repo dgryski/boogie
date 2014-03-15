@@ -10,8 +10,6 @@ What does the routing logic look like?
 
 What do intermediary master calls look like?
 
-Use redis connection pool
-
 Return err/stdout/stderr from commands
 
 What do we serialize the redis data with? json?

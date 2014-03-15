@@ -20,23 +20,22 @@ type Dispatcher struct {
 	count int
 }
 
+var RedisPool *redis.Pool
+
 func (d *Dispatcher) Dispatch(req *proto.DispatchRequest, resp *proto.DispatchResponse) error {
 	d.count++
 	log.Println("count=", d.count, "req: ", req)
 	resp.SessionID = fmt.Sprintf("%d", time.Now().UnixNano())
 
-	conn, err := redis.Dial("tcp", ":6379")
-	if err != nil {
-		log.Println("redis.Dial():", err)
-		return errors.New("unable to contact redis: " + err.Error())
-	}
-	defer conn.Close()
-
 	sessionID := resp.SessionID
+
+	conn := RedisPool.Get()
+	defer conn.Close()
 
 	for _, host := range req.Hosts {
 
 		// add this host to our redis store
+		// TODO(dgryski): only have a single redis set command outside of this loop?
 		if _, err := conn.Do("HSET", sessionID, host, nil); err != nil {
 			log.Printf("error setting redis key %s/%s: %s", resp.SessionID, host, err)
 		}
@@ -47,11 +46,7 @@ func (d *Dispatcher) Dispatch(req *proto.DispatchRequest, resp *proto.DispatchRe
 			if dialErr != nil {
 				log.Println("error dialing agent:", dialErr)
 
-				conn, err := redis.Dial("tcp", ":6379")
-				if err != nil {
-					log.Println("redis.Dial():", err)
-					return
-				}
+				conn := RedisPool.Get()
 				defer conn.Close()
 
 				// add this host's error to our redis store
@@ -79,11 +74,7 @@ func (d *Dispatcher) Dispatch(req *proto.DispatchRequest, resp *proto.DispatchRe
 
 				log.Println("error calling Agent.RunCommand:", runErr)
 
-				conn, err := redis.Dial("tcp", ":6379")
-				if err != nil {
-					log.Println("redis.Dial():", err)
-					return
-				}
+				conn := RedisPool.Get()
 				defer conn.Close()
 
 				// add this host's error to our redis store
@@ -101,11 +92,7 @@ func (d *Dispatcher) Dispatch(req *proto.DispatchRequest, resp *proto.DispatchRe
 func (d *Dispatcher) CommandOutput(req *proto.OutputRequest, resp *proto.Status) error {
 	log.Println("output:", req)
 
-	conn, err := redis.Dial("tcp", ":6379")
-	if err != nil {
-		log.Println("redis.Dial():", err)
-		return errors.New("unable to contact redis: " + err.Error())
-	}
+	conn := RedisPool.Get()
 	defer conn.Close()
 
 	// FIXME(dgryski): check if the output is "too old" and discard?
@@ -122,11 +109,7 @@ func (d *Dispatcher) Result(req *proto.ResultRequest, resp *proto.ResultResponse
 
 	log.Println("result:", req)
 
-	conn, err := redis.Dial("tcp", ":6379")
-	if err != nil {
-		log.Println("redis.Dial():", err)
-		return errors.New("unable to contact redis: " + err.Error())
-	}
+	conn := RedisPool.Get()
 	defer conn.Close()
 
 	values, err := redis.Values(conn.Do("HGETALL", req.SessionID))
@@ -163,8 +146,20 @@ func (d *Dispatcher) Result(req *proto.ResultRequest, resp *proto.ResultResponse
 func main() {
 
 	port := flag.Int("port", 8080, "listen port")
+	redisServer := flag.String("redis", "localhost:6379", "redis connect string")
 
 	flag.Parse()
+
+	RedisPool = redis.NewPool(
+		func() (redis.Conn, error) {
+			c, err := redis.Dial("tcp", *redisServer)
+			if err != nil {
+				return nil, err
+			}
+			return c, err
+		},
+		3,
+	)
 
 	dispatch := new(Dispatcher)
 
