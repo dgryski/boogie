@@ -4,6 +4,8 @@ Redis keys need expiry times (60s past timeout?)
 
 How does SSL get added and removed?
 
+How does user authentication happen?
+
 What does the routing logic look like?
 
 What do intermediary master calls look like?
@@ -17,3 +19,9 @@ What do we serialize the redis data with? json?
 Move to http+json-rpc (gorilla?) instead of raw net/rpc?
 
 Do we kill or ignore on command execution timeout?
+
+Config file
+
+expvar and net/http/pprof
+
+More logging for audit trails
