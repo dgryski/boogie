@@ -32,13 +32,26 @@ func (d *Dispatcher) Dispatch(req *proto.DispatchRequest, resp *proto.DispatchRe
 	conn := RedisPool.Get()
 	defer conn.Close()
 
-	for _, host := range req.Hosts {
+	args := make([]interface{}, 1+2*len(req.Hosts))
+	args[0] = sessionID
+	for i, h := range req.Hosts {
+		args[1+2*i] = h
+		args[1+2*i+1] = ""
+	}
 
-		// add this host to our redis store
-		// TODO(dgryski): only have a single redis set command outside of this loop?
-		if _, err := conn.Do("HSET", sessionID, host, nil); err != nil {
-			log.Printf("error setting redis key %s/%s: %s", resp.SessionID, host, err)
-		}
+	if _, err := conn.Do("HMSET", args...); err != nil {
+		err := fmt.Errorf("failed to set redis key %s: %s", resp.SessionID, err)
+		return err
+	}
+
+	// command output expires in redis 60 seconds after command timeout
+	expire := time.Duration(req.Timeout+60) * time.Second
+	if _, err := conn.Do("EXPIRE", sessionID, expire.Seconds()); err != nil {
+		err := fmt.Errorf("failed to set redis key %s: %s", resp.SessionID, err)
+		return err
+	}
+
+	for _, host := range req.Hosts {
 
 		go func(host string) {
 

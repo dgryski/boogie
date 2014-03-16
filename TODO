@@ -1,7 +1,5 @@
 Add timeouts / timestamps to all structs, and check them
 
-Redis keys need expiry times (60s past timeout?)
-
 How does SSL get added and removed?
 
 How does user authentication happen?
