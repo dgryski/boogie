@@ -10,9 +10,12 @@ What do intermediary master calls look like?
 
 Return err/stdout/stderr from commands
 
-What do we serialize the redis data with? json?
+What do we serialize the redis data with? json? gob? msgpack? sereal?
+
+Standardize on strings vs .[]byte for the protocol
 
 Move to http+json-rpc (gorilla?) instead of raw net/rpc?
+   something python compatible so bagent can be in python?
 
 Do we kill or ignore on command execution timeout?
 
@@ -21,3 +24,5 @@ Config file
 expvar and net/http/pprof
 
 More logging for audit trails
+
+Improve token generation
