@@ -12,13 +12,13 @@ import (
 
 func main() {
 
-	master := flag.String("m", "localhost:8080", "address of master server")
+	master := flag.String("m", "localhost:8079", "rpc address of master server")
 	hosts := flag.String("h", "", "list of hosts to execute on")
 	timeout := flag.Int("t", 10, "execution timeout")
 
 	flag.Parse()
 
-	client, err := rpc.DialHTTP("tcp", *master)
+	client, err := rpc.Dial("tcp", *master)
 	if err != nil {
 		log.Fatal("error dialing:", err)
 	}

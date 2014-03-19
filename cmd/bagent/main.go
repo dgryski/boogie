@@ -60,9 +60,9 @@ func (agent *Agent) RunCommand(req *proto.RunRequest, resp *proto.Status) error 
 			out.Err = "(timeout)"
 		}
 
-		m, err := rpc.DialHTTP("tcp", req.ResponseHost)
+		m, err := rpc.Dial("tcp", req.ResponseHost)
 		if err != nil {
-			log.Println("rpc.DialHTTP:", err)
+			log.Println("rpc.Dial:", err)
 			return
 		}
 
@@ -94,11 +94,10 @@ func main() {
 
 	rpc.Register(new(Agent))
 
-	rpc.HandleHTTP()
 	l, e := net.Listen("tcp", ":"+strconv.Itoa(*port))
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
-	http.Serve(l, nil)
+	rpc.Accept(l)
 
 }

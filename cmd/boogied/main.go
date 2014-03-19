@@ -59,7 +59,7 @@ func (d *Dispatcher) Dispatch(req *proto.DispatchRequest, resp *proto.DispatchRe
 
 		go func(host string) {
 
-			client, dialErr := rpc.DialHTTP("tcp", host)
+			client, dialErr := rpc.Dial("tcp", host)
 			if dialErr != nil {
 				log.Println("error dialing agent:", dialErr)
 
@@ -76,7 +76,7 @@ func (d *Dispatcher) Dispatch(req *proto.DispatchRequest, resp *proto.DispatchRe
 			}
 
 			req := proto.RunRequest{
-				ResponseHost: "localhost:8080",
+				ResponseHost: "localhost:8079",
 				Command:      req.Command,
 				SessionID:    sessionID,
 				Timeout:      req.Timeout,
@@ -251,7 +251,7 @@ func outputHandler(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 
-	port := flag.Int("port", 8080, "listen port")
+	rpcport := flag.Int("port", 8079, "rpc listen port")
 	tlsPort := flag.Int("tls", 0, "https listen port")
 	tlsCert := flag.String("cert", "", "tls certificate")
 	tlsKey := flag.String("key", "", "tls key")
@@ -274,17 +274,17 @@ func main() {
 
 	rpc.Register(dispatch)
 
-	rpc.HandleHTTP()
-	l, e := net.Listen("tcp", ":"+strconv.Itoa(*port))
+	l, e := net.Listen("tcp", ":"+strconv.Itoa(*rpcport))
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
-
-	// register some HTTP endpoints
-	http.HandleFunc("/boogie/dispatch", dispatchHandler)
-	http.HandleFunc("/boogie/output", outputHandler)
+	go rpc.Accept(l)
 
 	if *tlsPort != 0 {
+
+		// register some HTTP endpoints
+		http.HandleFunc("/boogie/dispatch", dispatchHandler)
+		http.HandleFunc("/boogie/output", outputHandler)
 
 		cert, err := tls.LoadX509KeyPair(*tlsCert, *tlsKey)
 		if err != nil {
@@ -303,6 +303,7 @@ func main() {
 		go http.Serve(tl, nil)
 	}
 
-	http.Serve(l, nil)
+	// wait here until killed
+	select {}
 
 }
