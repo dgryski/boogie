@@ -7,6 +7,7 @@ Questions:
 
 Improve token generation: (snowflake)
 Every protocol struct needs timeout and/or timestamps that are checked
+Tests
 
 RPC layer:
     Add TLS and client cert verification
