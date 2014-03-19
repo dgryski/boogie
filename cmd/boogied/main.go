@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/gob"
 	"encoding/json"
 	"errors"
@@ -251,6 +252,9 @@ func outputHandler(w http.ResponseWriter, req *http.Request) {
 func main() {
 
 	port := flag.Int("port", 8080, "listen port")
+	tlsPort := flag.Int("tls", 8443, "https listen port")
+	tlsCert := flag.String("cert", "", "tls certificate")
+	tlsKey := flag.String("key", "", "tls key")
 	redisServer := flag.String("redis", "localhost:6379", "redis connect string")
 
 	flag.Parse()
@@ -280,6 +284,19 @@ func main() {
 	http.HandleFunc("/boogie/dispatch", dispatchHandler)
 	http.HandleFunc("/boogie/output", outputHandler)
 
-	http.Serve(l, nil)
+	go http.Serve(l, nil)
+
+	cert, err := tls.LoadX509KeyPair(*tlsCert, *tlsKey)
+	if err != nil {
+		log.Fatal("unable to load certificates: ", err)
+	}
+	var tlsConfig = tls.Config{
+		Certificates: []tls.Certificate{cert},
+		// TODO(dgryski): This needs to be RequireAndVerifyClientCert
+		ClientAuth: tls.RequireAnyClientCert,
+	}
+	tl, e := tls.Listen("tcp", ":"+strconv.Itoa(*tlsPort), &tlsConfig)
+
+	http.Serve(tl, nil)
 
 }
