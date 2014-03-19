@@ -9,6 +9,7 @@ import (
 	"net/rpc"
 	"os/exec"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/dgryski/boogie/proto"
@@ -28,7 +29,9 @@ func (agent *Agent) RunCommand(req *proto.RunRequest, resp *proto.Status) error 
 		cmd := exec.Command(req.Command[0], req.Command[1:]...)
 
 		var sout bytes.Buffer
+		var serr bytes.Buffer
 		cmd.Stdout = &sout
+		cmd.Stderr = &serr
 
 		go func() {
 			err := cmd.Run()
@@ -37,20 +40,24 @@ func (agent *Agent) RunCommand(req *proto.RunRequest, resp *proto.Status) error 
 
 		timeout := time.After(time.Duration(req.Timeout) * time.Second)
 
-		var out []byte
+		out := proto.OutputRequest{
+			Host:      Name,
+			SessionID: req.SessionID,
+		}
+
 		select {
 		case err := <-done:
 			if err != nil {
-				out = []byte(err.Error())
-				break
+				out.Err = err.Error()
 			}
 
-			out = sout.Bytes()
-			if len(out) == 0 {
-				out = []byte("(none)")
+			out.Stdout = sout.Bytes()
+			out.Stderr = serr.Bytes()
+			if cmd.ProcessState != nil {
+				out.ExitCode = cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 			}
 		case <-timeout:
-			out = []byte("(timeout)")
+			out.Err = "(timeout)"
 		}
 
 		m, err := rpc.DialHTTP("tcp", req.ResponseHost)
@@ -60,11 +67,7 @@ func (agent *Agent) RunCommand(req *proto.RunRequest, resp *proto.Status) error 
 		}
 
 		var resp proto.Status
-		m.Call("Dispatcher.CommandOutput", &proto.OutputRequest{
-			Host:      Name,
-			SessionID: req.SessionID,
-			Output:    out,
-		}, &resp)
+		m.Call("Dispatcher.CommandOutput", &out, &resp)
 
 		if resp.Code != http.StatusOK {
 			log.Println("error sending output")

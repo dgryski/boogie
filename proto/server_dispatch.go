@@ -13,5 +13,8 @@ type DispatchResponse struct {
 type OutputRequest struct {
 	SessionID string
 	Host      string
-	Output    []byte
+	Stdout    []byte
+	Stderr    []byte
+	Err       string
+	ExitCode  int
 }

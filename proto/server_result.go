@@ -6,5 +6,5 @@ type ResultRequest struct {
 
 type ResultResponse struct {
 	SessionID string
-	Output    map[string]string
+	Output    map[string]OutputRequest
 }

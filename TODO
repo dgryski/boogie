@@ -12,9 +12,6 @@ RPC layer:
     How does SSL get added and removed?
     Move to http+json-rpc (gorilla?) instead of raw net/rpc?
         something python compatible so bagent can be in python?
-    Return err/stdout/stderr from commands
-        redis hashes are single-layer, we need to serialize with something
-    Standardize on strings vs []byte for the protocol
     What do intermediary master calls look like?
 
 Production:

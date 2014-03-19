@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"flag"
 	"fmt"
@@ -59,13 +61,14 @@ func (d *Dispatcher) Dispatch(req *proto.DispatchRequest, resp *proto.DispatchRe
 			if dialErr != nil {
 				log.Println("error dialing agent:", dialErr)
 
-				conn := RedisPool.Get()
-				defer conn.Close()
-
-				// add this host's error to our redis store
-				if _, err := conn.Do("HSET", sessionID, host, dialErr); err != nil {
-					log.Printf("error setting redis key %s/%s: %s", resp.SessionID, host, err)
+				req := proto.OutputRequest{
+					SessionID: sessionID,
+					Host:      host,
+					Err:       dialErr.Error(),
 				}
+
+				// error ignored
+				writeOutputToRedis(&req)
 
 				return
 			}
@@ -87,13 +90,15 @@ func (d *Dispatcher) Dispatch(req *proto.DispatchRequest, resp *proto.DispatchRe
 
 				log.Println("error calling Agent.RunCommand:", runErr)
 
-				conn := RedisPool.Get()
-				defer conn.Close()
-
-				// add this host's error to our redis store
-				if _, err := conn.Do("HSET", sessionID, host, runErr); err != nil {
-					log.Printf("error setting redis key %s/%s: %s", sessionID, host, err)
+				req := proto.OutputRequest{
+					SessionID: sessionID,
+					Host:      host,
+					Err:       runErr.Error(),
 				}
+
+				// error ignored
+				writeOutputToRedis(&req)
+
 				return
 			}
 		}(host)
@@ -105,16 +110,36 @@ func (d *Dispatcher) Dispatch(req *proto.DispatchRequest, resp *proto.DispatchRe
 func (d *Dispatcher) CommandOutput(req *proto.OutputRequest, resp *proto.Status) error {
 	log.Println("output:", req)
 
+	// we just wrap this one call at the moment
+	err := writeOutputToRedis(req)
+
+	if err != nil {
+		resp.Code = http.StatusInternalServerError
+	} else {
+		resp.Code = http.StatusOK
+	}
+	return nil
+}
+
+func writeOutputToRedis(req *proto.OutputRequest) error {
 	conn := RedisPool.Get()
 	defer conn.Close()
 
 	// FIXME(dgryski): check if the output is "too old" and discard?
 
-	if _, err := conn.Do("HSET", req.SessionID, req.Host, req.Output); err != nil {
+	b := &bytes.Buffer{}
+	e := gob.NewEncoder(b)
+	err := e.Encode(req)
+	if err != nil {
 		log.Println(err)
+		return err
 	}
 
-	resp.Code = http.StatusOK
+	if _, err := conn.Do("HSET", req.SessionID, req.Host, b.Bytes()); err != nil {
+		log.Println(err)
+		return err
+	}
+
 	return nil
 }
 
@@ -131,7 +156,7 @@ func (d *Dispatcher) Result(req *proto.ResultRequest, resp *proto.ResultResponse
 	}
 
 	// host => output
-	m := make(map[string]string)
+	m := make(map[string]proto.OutputRequest)
 	for i := 0; i < len(values); i += 2 {
 		var k []uint8
 		var kok bool
@@ -145,9 +170,17 @@ func (d *Dispatcher) Result(req *proto.ResultRequest, resp *proto.ResultResponse
 			return errors.New("bad type for value: " + reflect.TypeOf(values[i+1]).String())
 		}
 
-		log.Println(v)
+		if len(v) > 0 {
+			var out proto.OutputRequest
+			d := gob.NewDecoder(bytes.NewReader(v))
+			err := d.Decode(&out)
+			if err != nil {
+				log.Println("error decoding buffer: ", err)
+				return errors.New("failed to decode output: " + err.Error())
+			}
 
-		m[string(k)] = string(v)
+			m[string(k)] = out
+		}
 	}
 
 	resp.SessionID = req.SessionID
