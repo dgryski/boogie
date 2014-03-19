@@ -58,7 +58,7 @@ func main() {
 		time.Sleep(1 * time.Second)
 		for host, output := range resultResp.Output {
 			if !seen[host] {
-				log.Printf("host: %s\n%s\n%s\n%s\n%d\n", host, string(output.Stderr), string(output.Stdout), output.Err, output.ExitCode)
+				log.Printf("host: %s\nstderr: %s\nstdout: %s\nerr: %s\nexit: %d\n", host, string(output.Stderr), string(output.Stdout), output.Err, output.ExitCode)
 				seen[host] = true
 			}
 		}
