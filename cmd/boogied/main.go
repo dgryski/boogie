@@ -252,7 +252,7 @@ func outputHandler(w http.ResponseWriter, req *http.Request) {
 func main() {
 
 	port := flag.Int("port", 8080, "listen port")
-	tlsPort := flag.Int("tls", 8443, "https listen port")
+	tlsPort := flag.Int("tls", 0, "https listen port")
 	tlsCert := flag.String("cert", "", "tls certificate")
 	tlsKey := flag.String("key", "", "tls key")
 	redisServer := flag.String("redis", "localhost:6379", "redis connect string")
@@ -284,19 +284,25 @@ func main() {
 	http.HandleFunc("/boogie/dispatch", dispatchHandler)
 	http.HandleFunc("/boogie/output", outputHandler)
 
-	go http.Serve(l, nil)
+	if *tlsPort != 0 {
 
-	cert, err := tls.LoadX509KeyPair(*tlsCert, *tlsKey)
-	if err != nil {
-		log.Fatal("unable to load certificates: ", err)
-	}
-	var tlsConfig = tls.Config{
-		Certificates: []tls.Certificate{cert},
-		// TODO(dgryski): This needs to be RequireAndVerifyClientCert
-		ClientAuth: tls.RequireAnyClientCert,
-	}
-	tl, e := tls.Listen("tcp", ":"+strconv.Itoa(*tlsPort), &tlsConfig)
+		cert, err := tls.LoadX509KeyPair(*tlsCert, *tlsKey)
+		if err != nil {
+			log.Fatal("unable to load certificates: ", err)
+		}
+		var tlsConfig = tls.Config{
+			Certificates: []tls.Certificate{cert},
+			// TODO(dgryski): This needs to be RequireAndVerifyClientCert
+			ClientAuth: tls.RequireAnyClientCert,
+		}
+		tl, e := tls.Listen("tcp", ":"+strconv.Itoa(*tlsPort), &tlsConfig)
+		if e != nil {
+			log.Fatal("unable to listen for TLS: ", err)
+		}
 
-	http.Serve(tl, nil)
+		go http.Serve(tl, nil)
+	}
+
+	http.Serve(l, nil)
 
 }
