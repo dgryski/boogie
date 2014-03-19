@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -189,6 +190,64 @@ func (d *Dispatcher) Result(req *proto.ResultRequest, resp *proto.ResultResponse
 	return nil
 }
 
+func dispatchHandler(w http.ResponseWriter, req *http.Request) {
+
+	req.ParseForm()
+
+	log.Println(req.PostForm)
+
+	hosts := req.PostForm["hosts"]
+	command := req.PostForm["command"]
+	timeout, _ := strconv.Atoi(req.FormValue("timeout"))
+
+	rpcreq := proto.DispatchRequest{
+		Hosts:   hosts,
+		Command: command,
+		Timeout: timeout,
+	}
+
+	dispatch := new(Dispatcher)
+
+	var rpcresp proto.DispatchResponse
+
+	err := dispatch.Dispatch(&rpcreq, &rpcresp)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	jenc := json.NewEncoder(w)
+	jenc.Encode(rpcresp)
+}
+
+func outputHandler(w http.ResponseWriter, req *http.Request) {
+
+	req.ParseForm()
+
+	sessionID := req.FormValue("SessionID")
+
+	rpcreq := proto.ResultRequest{
+		SessionID: sessionID,
+	}
+
+	dispatch := new(Dispatcher)
+
+	var rpcresp proto.ResultResponse
+
+	err := dispatch.Result(&rpcreq, &rpcresp)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	jenc := json.NewEncoder(w)
+	jenc.Encode(rpcresp)
+}
+
 func main() {
 
 	port := flag.Int("port", 8080, "listen port")
@@ -216,6 +275,11 @@ func main() {
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
+
+	// register some HTTP endpoints
+	http.HandleFunc("/boogie/dispatch", dispatchHandler)
+	http.HandleFunc("/boogie/output", outputHandler)
+
 	http.Serve(l, nil)
 
 }
