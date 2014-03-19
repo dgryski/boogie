@@ -9,9 +9,8 @@ Improve token generation: (snowflake)
 Every protocol struct needs timeout and/or timestamps that are checked
 
 RPC layer:
-    How does SSL get added and removed?
-    Move to http+json-rpc (gorilla?) instead of raw net/rpc?
-        something python compatible so bagent can be in python?
+    Add TLS and client cert verification
+    HTTPS needs TLS client cert verification
     What do intermediary master calls look like?
 
 Production:
