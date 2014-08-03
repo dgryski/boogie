@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"io/ioutil"
+
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/gob"
 	"encoding/json"
 	"errors"
@@ -259,6 +262,35 @@ func main() {
 
 	flag.Parse()
 
+	var err error
+	var ca *x509.Certificate
+	var ca_b []byte
+	var priv_b []byte
+	var priv []byte
+
+	if *tlsCert != "" && *tlsKey != "" {
+		ca_b, err = ioutil.ReadFile(*tlsCert)
+		if err != nil {
+			log.Fatal("certificate error:", err)
+		}
+		priv_b, err = ioutil.ReadFile(*tlsKey)
+
+		if err != nil {
+			log.Fatal("key error:", err)
+		}
+
+		ca, err = x509.ParseCertificate(ca_b)
+		if err != nil {
+			log.Fatal("parse certificate error:", err)
+		}
+
+		priv, err := x509.ParsePKCS1PrivateKey(priv_b)
+		if err != nil {
+			log.Fatal("parse private key error:", priv, err)
+		}
+
+	}
+
 	RedisPool = redis.NewPool(
 		func() (redis.Conn, error) {
 			c, err := redis.Dial("tcp", *redisServer)
@@ -286,14 +318,17 @@ func main() {
 		http.HandleFunc("/boogie/dispatch", dispatchHandler)
 		http.HandleFunc("/boogie/output", outputHandler)
 
-		cert, err := tls.LoadX509KeyPair(*tlsCert, *tlsKey)
-		if err != nil {
-			log.Fatal("unable to load certificates: ", err)
+		cert := tls.Certificate{
+			Certificate: [][]byte{ca_b},
+			PrivateKey:  priv,
 		}
+
+		pool := x509.NewCertPool()
+		pool.AddCert(ca)
 		var tlsConfig = tls.Config{
 			Certificates: []tls.Certificate{cert},
-			// TODO(dgryski): This needs to be RequireAndVerifyClientCert
-			ClientAuth: tls.RequireAnyClientCert,
+			ClientAuth:   tls.RequireAndVerifyClientCert,
+			ClientCAs:    pool,
 		}
 		tl, e := tls.Listen("tcp", ":"+strconv.Itoa(*tlsPort), &tlsConfig)
 		if e != nil {
@@ -305,5 +340,4 @@ func main() {
 
 	// wait here until killed
 	select {}
-
 }
