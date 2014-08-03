@@ -254,7 +254,7 @@ func outputHandler(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 
-	rpcport := flag.Int("port", 8079, "rpc listen port")
+	rpcPort := flag.Int("port", 8079, "rpc listen port")
 	tlsPort := flag.Int("tls", 0, "https listen port")
 	tlsCert := flag.String("cert", "", "tls certificate")
 	tlsKey := flag.String("key", "", "tls key")
@@ -274,7 +274,6 @@ func main() {
 			log.Fatal("certificate error:", err)
 		}
 		priv_b, err = ioutil.ReadFile(*tlsKey)
-
 		if err != nil {
 			log.Fatal("key error:", err)
 		}
@@ -286,7 +285,7 @@ func main() {
 
 		priv, err := x509.ParsePKCS1PrivateKey(priv_b)
 		if err != nil {
-			log.Fatal("parse private key error:", priv, err)
+			log.Fatal("parse key error:", priv, err)
 		}
 
 	}
@@ -306,7 +305,7 @@ func main() {
 
 	rpc.Register(dispatch)
 
-	l, e := net.Listen("tcp", ":"+strconv.Itoa(*rpcport))
+	l, e := net.Listen("tcp", ":"+strconv.Itoa(*rpcPort))
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
