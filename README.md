@@ -1,6 +1,11 @@
 
 Boogie is a replacement for FUNC, the Fedora Unified Network Controller.
 
+This means it is a collection of programs for running arbitrary shell commands
+securely in parallel across your network infrastructure.
+
+It's early stages though and by no means production ready.
+
 If you are interested in the design behind Boogie, be sure to look at https://github.com/dgryski/boogie/wiki/Design-considerations first.
 
 Quick start:
