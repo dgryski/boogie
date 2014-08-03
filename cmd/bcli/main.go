@@ -1,8 +1,12 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"flag"
+	"io/ioutil"
 	"log"
+	"net"
 	"net/rpc"
 	"strings"
 	"time"
@@ -13,16 +17,36 @@ import (
 func main() {
 
 	master := flag.String("m", "localhost:8079", "rpc address of master server")
+	tlsClientCert := flag.String("cert", "", "TLS client certificate")
+	tlsPrivateKey := flag.String("priv", "", "TLS private key")
 	hosts := flag.String("h", "", "list of hosts to execute on")
 	timeout := flag.Int("t", 10, "execution timeout")
 
 	flag.Parse()
 
-	client, err := rpc.Dial("tcp", *master)
+	var rpcConn net.Conn
+	var err error
+	if *tlsClientCert != "" {
+		cert2_b, _ := ioutil.ReadFile(*tlsClientCert)
+		priv2_b, _ := ioutil.ReadFile(*tlsPrivateKey)
+		priv2, _ := x509.ParsePKCS1PrivateKey(priv2_b)
+
+		cert := tls.Certificate{
+			Certificate: [][]byte{cert2_b},
+			PrivateKey:  priv2,
+		}
+
+		config := tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+		rpcConn, err = tls.Dial("tcp", *master, &config)
+	} else {
+		rpcConn, err = net.Dial("tcp", *master)
+	}
 	if err != nil {
 		log.Fatal("error dialing:", err)
 	}
+	defer rpcConn.Close()
 
+	client := rpc.NewClient(rpcConn)
 	req := proto.DispatchRequest{
 		Command: flag.Args(),
 		Hosts:   strings.Split(*hosts, ","),
