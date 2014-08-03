@@ -2,7 +2,7 @@ package proto
 
 type DispatchRequest struct {
 	Hosts   []string
-	Command []string
+	Command string
 	Timeout int
 }
 

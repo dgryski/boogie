@@ -198,12 +198,12 @@ func dispatchHandler(w http.ResponseWriter, req *http.Request) {
 	log.Println(req.PostForm)
 
 	hosts := req.PostForm["hosts"]
-	command := req.PostForm["command"]
+	cmd := req.FormValue("command")
 	timeout, _ := strconv.Atoi(req.FormValue("timeout"))
 
 	rpcreq := proto.DispatchRequest{
 		Hosts:   hosts,
-		Command: command,
+		Command: cmd,
 		Timeout: timeout,
 	}
 

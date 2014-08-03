@@ -26,7 +26,7 @@ func (agent *Agent) RunCommand(req *proto.RunRequest, resp *proto.Status) error 
 
 		done := make(chan error)
 
-		cmd := exec.Command(req.Command[0], req.Command[1:]...)
+		cmd := exec.Command("/bin/bash", "-c", req.Command)
 
 		var sout bytes.Buffer
 		var serr bytes.Buffer

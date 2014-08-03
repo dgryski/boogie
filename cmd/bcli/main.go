@@ -16,6 +16,7 @@ import (
 
 func main() {
 
+	cmd := flag.String("c", "ls", "command to run")
 	master := flag.String("m", "localhost:8079", "rpc address of master server")
 	tlsClientCert := flag.String("cert", "", "TLS client certificate")
 	tlsPrivateKey := flag.String("priv", "", "TLS private key")
@@ -48,7 +49,7 @@ func main() {
 
 	client := rpc.NewClient(rpcConn)
 	req := proto.DispatchRequest{
-		Command: flag.Args(),
+		Command: *cmd,
 		Hosts:   strings.Split(*hosts, ","),
 		Timeout: *timeout,
 	}
