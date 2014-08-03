@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/gob"
 	"encoding/json"
 	"errors"
@@ -260,11 +259,6 @@ func main() {
 
 	flag.Parse()
 
-	var ca *x509.Certificate
-	var ca_b []byte
-	var priv_b []byte
-	var priv []byte
-
 	RedisPool = redis.NewPool(
 		func() (redis.Conn, error) {
 			c, err := redis.Dial("tcp", *redisServer)
@@ -296,13 +290,10 @@ func main() {
         if err != nil {
                 log.Fatalf("server: loadkeys: %s", err)
         }
-		pool := x509.NewCertPool()
-		pool.AddCert(keypair)
 
 		var tlsConfig = tls.Config{
 			Certificates: []tls.Certificate{keypair},
 			ClientAuth:   tls.RequireAndVerifyClientCert,
-			ClientCAs:    pool,
 		}
 		tl, e := tls.Listen("tcp", ":"+strconv.Itoa(*tlsPort), &tlsConfig)
 		if e != nil {
